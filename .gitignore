@@ -1,0 +1,13 @@
+*
+!.gitignore
+
+!wp-content/
+wp-content/*
+
+!wp-content/mu-plugins/
+!wp-content/mu-plugins/**
+
+!wp-content/themes/
+wp-content/themes/*
+!wp-content/themes/hello-theme-child-master/
+!wp-content/themes/hello-theme-child-master/**
