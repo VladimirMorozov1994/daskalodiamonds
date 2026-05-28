@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daskalo Product Card Clickable Elements
  * Description: Makes JetEngine/Elementor product card sale badges and prices clickable.
- * Version: 1.0.5
+ * Version: 1.0.3
  */
 
 if (!defined('ABSPATH')) {
@@ -13,7 +13,8 @@ add_action('wp_head', function () {
     ?>
     <style>
         .dd-product-price-link,
-        .dd-product-sale-badge-link {
+        .dd-product-sale-badge-link,
+        .dd-product-card-overlay-link {
             color: inherit;
             text-decoration: none;
         }
@@ -37,10 +38,45 @@ add_action('wp_head', function () {
             line-height: 0;
         }
 
+        .dd-product-card-overlay-link[data-dd-card-overlay="1"] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 5;
+            display: block;
+            cursor: pointer;
+            background: transparent;
+            font-size: 0;
+            line-height: 0;
+        }
+
+        [data-dd-card-clickable="1"] .jet-woo-builder-archive-add-to-cart,
+        [data-dd-card-clickable="1"] .jet-woo-builder-archive-add-to-cart a {
+            position: relative;
+            z-index: 20;
+        }
+
+        [data-dd-card-clickable="1"] .elementor-widget-image,
+        [data-dd-card-clickable="1"] .elementor-widget-image .elementor-widget-container {
+            overflow: hidden;
+        }
+
+        [data-dd-card-clickable="1"] .elementor-widget-image img {
+            transition: transform 0.3s ease;
+        }
+
+        [data-dd-card-clickable="1"]:hover .elementor-widget-image img {
+            transform: scale(1.05);
+        }
+
         .dd-product-price-link:hover,
         .dd-product-price-link:focus,
         .dd-product-sale-badge-link:hover,
-        .dd-product-sale-badge-link:focus {
+        .dd-product-sale-badge-link:focus,
+        .dd-product-card-overlay-link:hover,
+        .dd-product-card-overlay-link:focus {
             color: inherit;
             text-decoration: none;
         }
@@ -71,6 +107,9 @@ add_action('wp_footer', function () {
 
                 return (
                     link.classList.contains('add_to_cart_button') ||
+                    link.classList.contains('dd-product-card-overlay-link') ||
+                    link.classList.contains('dd-product-sale-badge-link') ||
+                    link.classList.contains('dd-product-price-link') ||
                     link.closest('.jet-woo-builder-archive-add-to-cart') ||
                     link.href.indexOf('add-to-cart=') !== -1
                 );
@@ -196,6 +235,47 @@ add_action('wp_footer', function () {
                 element.appendChild(link);
             }
 
+            function getClickableCardArea(card) {
+                return card.querySelector('.elementor-element[data-element_type="container"]') || card;
+            }
+
+            function hasDirectCardOverlay(element) {
+                var children = Array.prototype.slice.call(element.children);
+
+                return children.some(function (child) {
+                    return (
+                        child.classList &&
+                        child.classList.contains('dd-product-card-overlay-link') &&
+                        child.getAttribute('data-dd-card-overlay') === '1'
+                    );
+                });
+            }
+
+            function addCardOverlayLink(cardArea, url, ariaLabel) {
+                if (!cardArea || !url) {
+                    return;
+                }
+
+                cardArea.setAttribute('data-dd-card-clickable', '1');
+
+                if (hasDirectCardOverlay(cardArea)) {
+                    return;
+                }
+
+                if (window.getComputedStyle(cardArea).position === 'static') {
+                    cardArea.style.position = 'relative';
+                }
+
+                var link = document.createElement('a');
+
+                link.className = 'dd-product-card-overlay-link';
+                link.href = url;
+                link.setAttribute('aria-label', ariaLabel || 'View product');
+                link.setAttribute('data-dd-card-overlay', '1');
+
+                cardArea.appendChild(link);
+            }
+
             function wrapSaleBadges(card, productUrl, productLabel) {
                 var possibleBadges = Array.prototype.slice.call(
                     card.querySelectorAll('.elementor-heading-title, .onsale')
@@ -250,7 +330,9 @@ add_action('wp_footer', function () {
 
                     var productUrl = productLink.href;
                     var productLabel = getProductLabel(card);
+                    var cardArea = getClickableCardArea(card);
 
+                    addCardOverlayLink(cardArea, productUrl, productLabel);
                     wrapSaleBadges(card, productUrl, productLabel);
                     wrapPrices(card, productUrl, productLabel);
                 });
