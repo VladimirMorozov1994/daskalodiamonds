@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Daskalo Product Card Clickable Elements
  * Description: Makes JetEngine/Elementor product card sale badges and prices clickable.
- * Version: 1.0.3
+ * Version: 1.0.5
  */
 
 if (!defined('ABSPATH')) {
@@ -23,15 +23,18 @@ add_action('wp_head', function () {
             cursor: pointer;
         }
 
-        .dd-product-sale-badge-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            color: inherit;
-            text-decoration: none;
+        .dd-product-sale-badge-link[data-dd-sale-overlay="1"] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 10;
+            display: block;
             cursor: pointer;
+            background: transparent;
+            font-size: 0;
+            line-height: 0;
         }
 
         .dd-product-price-link:hover,
@@ -144,6 +147,55 @@ add_action('wp_footer', function () {
                 element.appendChild(link);
             }
 
+            function unwrapSaleBadgeTextLinks(element, className) {
+                var existingLinks = Array.prototype.slice.call(
+                    element.querySelectorAll('a.' + className)
+                );
+
+                existingLinks.forEach(function (existingLink) {
+                    if (existingLink.getAttribute('data-dd-sale-overlay') === '1') {
+                        return;
+                    }
+
+                    var parent = existingLink.parentNode;
+
+                    if (!parent) {
+                        return;
+                    }
+
+                    while (existingLink.firstChild) {
+                        parent.insertBefore(existingLink.firstChild, existingLink);
+                    }
+
+                    parent.removeChild(existingLink);
+                });
+            }
+
+            function addOverlayLinkToElement(element, url, className, ariaLabel) {
+                if (!element || !url) {
+                    return;
+                }
+
+                unwrapSaleBadgeTextLinks(element, className);
+
+                if (element.querySelector('a.' + className + '[data-dd-sale-overlay="1"]')) {
+                    return;
+                }
+
+                if (window.getComputedStyle(element).position === 'static') {
+                    element.style.position = 'relative';
+                }
+
+                var link = document.createElement('a');
+
+                link.className = className;
+                link.href = url;
+                link.setAttribute('aria-label', ariaLabel || 'View product');
+                link.setAttribute('data-dd-sale-overlay', '1');
+
+                element.appendChild(link);
+            }
+
             function wrapSaleBadges(card, productUrl, productLabel) {
                 var possibleBadges = Array.prototype.slice.call(
                     card.querySelectorAll('.elementor-heading-title, .onsale')
@@ -154,8 +206,12 @@ add_action('wp_footer', function () {
                         return;
                     }
 
-                    wrapElementContentWithLink(
-                        badge,
+                    var badgeWrapper = badge.closest('.elementor-element.elementor-widget-heading') ||
+                        badge.closest('.elementor-widget-heading') ||
+                        badge;
+
+                    addOverlayLinkToElement(
+                        badgeWrapper,
                         productUrl,
                         'dd-product-sale-badge-link',
                         productLabel
